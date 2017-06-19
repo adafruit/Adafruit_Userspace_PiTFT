@@ -16,6 +16,7 @@ OPTIONAL: enable large SPI transfers (reducing CPU load) by adding this to /boot
 ```
 spidev.bufsiz=65536
 ```
+EDIT: don't do this. Yes it reduces CPU load, but at the expense of frame rate. Just leave at the default (4096) and a reasonably steady-ish 30-ish FPS is possible.
 
 OPTIONAL: set HDMI output resolution to 320x240 or 640x480 (makes the scaled output look somewhat legible) in /boot/config.txt:
 ```
