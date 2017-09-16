@@ -26,3 +26,12 @@ hdmi_group=2
 hdmi_mode=87
 hdmi_cvt=640 480 60 1 0 0 0
 ```
+
+OPTIONAL, for 'portrait' video:
+```
+    display_rotate=3
+```
+
+(For 'square' utility, use 480x480 resolution instead)
+
+(For 'nanoscreen' utility, use 384x256 resolution instead)
