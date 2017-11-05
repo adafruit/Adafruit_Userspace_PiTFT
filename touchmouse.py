@@ -14,16 +14,33 @@ import time
 import RPi.GPIO as gpio
 import spidev
 from evdev import UInputError, UInput, AbsInfo, ecodes as e
+import argparse
+
+
+# ARGUMENT PARSER ----------------------------------------------------------
+parser = argparse.ArgumentParser(description='Touchmouse configurations')
+parser.add_argument('--chip', default="STMPE", help='select what chip to use - only STMPE supported at this time')
+parser.add_argument('-d', '--debug', action='store_true', help='print debug message')
+parser.add_argument('-r', '--rotation', default=90, type=int, help='Rotate the touchscreen 0/90/180 or 270 degrees')
+parser.add_argument('-c', '--calibration', default=[100, 100, 3800, 3800], nargs=4, type=int, help='Set the 4-part calibration')
+parser.add_argument('-o', '--outrange', default=[0, 0, 4095, 4095],  nargs=4, type=int, help='Set the 4-par output range')
+args = parser.parse_args()
+print(args)
 
 # UINPUT INIT --------------------------------------------------------------
 
 #os.system("sudo modprobe uinput")
 
+EVENT_X_MAX              = args.outrange[2]
+EVENT_Y_MAX              = args.outrange[3]
+
 events = {
-  e.EV_KEY : [e.BTN_LEFT],
+  e.EV_KEY : [e.BTN_TOUCH],
   e.EV_ABS : [
-   (e.ABS_X, AbsInfo(value=0, min=0, max=1023, fuzz=0, flat=0, resolution=0)),
-   (e.ABS_Y, AbsInfo(value=0, min=0, max=1023, fuzz=0, flat=0, resolution=0))]
+   (e.ABS_X, AbsInfo(value=0, min=0, max=EVENT_X_MAX, fuzz=0, flat=0, resolution=0)),
+   (e.ABS_Y, AbsInfo(value=0, min=0, max=EVENT_Y_MAX, fuzz=0, flat=0, resolution=0)),
+   (e.ABS_PRESSURE, AbsInfo(value=0, min=0, max=255, fuzz=0, flat=0, resolution=0))
+   ]
 }
 try:
   ui = UInput(events, name="touchmouse", bustype=e.BUS_USB)
@@ -81,6 +98,11 @@ STMPE_TSC_CFG_SETTLE_5MS = 0x04
 STMPE_FIFO_STA_RESET     = 0x01
 STMPE_TSC_I_DRIVE_50MA   = 0x01
 
+CALIBRATION_MIN_X        = 0
+CALIBRATION_MIN_Y        = 1
+CALIBRATION_MAX_X        = 2
+CALIBRATION_MAX_Y        = 3
+
 def writeRegister8(addr, value):
 	spi.xfer2([addr, value])
 
@@ -96,11 +118,13 @@ if id != 0x811:
 	spi.mode = 0
 	id = readRegister16(0)
 
-print("Found Chip ID: 0x%x" % id)
+if args.debug:
+	print("Found Chip ID: 0x%x" % id)
 if id != 0x811:
 	print("Not a valid touch chip I know! Check your wiring")
 	exit
-print("Recognized touch chip. Let's go!")
+if args.debug:
+	print("Recognized touch chip. Let's go!")
 
 # Issue soft reset
 writeRegister8(STMPE_SYS_CTRL1, STMPE_SYS_CTRL1_RESET)
@@ -127,8 +151,10 @@ writeRegister8(STMPE_INT_STA, 0xFF) # reset all ints
 foo = [ 0,0,0,0 ]
 
 while True:
-	gpio.wait_for_edge(irqPin, gpio.FALLING, timeout=10)
-
+	r = gpio.wait_for_edge(irqPin, gpio.FALLING, timeout=1)
+	if r is None:     # no edge detected
+		continue
+	
 	blat = True
 	while readRegister8(STMPE_TSC_CTRL) & 0x80:
 
@@ -143,26 +169,29 @@ while True:
 		x = ( foo[0]         << 4) | (foo[1] >> 4)
 		y = ((foo[1] & 0x0F) << 8) |  foo[2]
 		z =  foo[3]
-		print x, y, z
+		if args.debug:
+			print(x, y, z)
 
 		if z:
 			# Convert to screen space
-			x1 = (y - 188) * 1024 / 3508;
-			if   x1 > 1023: x1 = 1023;
-			elif x1 <    0: x1 = 0;
-			y1 = (3803 - x) * 1024 / 3510;
-			if   y1 > 1023: y1 = 1023;
-			elif y1 <    0: y1 = 0;
+			x1 = (y - args.calibration[CALIBRATION_MIN_Y]) * (EVENT_X_MAX+1) / (args.calibration[CALIBRATION_MAX_Y] - args.calibration[CALIBRATION_MIN_Y])
+			x1 = min(max(x1, 0), EVENT_X_MAX)
+
+			y1 = (args.calibration[CALIBRATION_MAX_X] - x) * (EVENT_Y_MAX+1) / (args.calibration[CALIBRATION_MAX_X] - args.calibration[CALIBRATION_MIN_X])
+			y1 = min(max(y1, 0), EVENT_Y_MAX)
+			
 			ui.write(e.EV_ABS, e.ABS_X, x1)
 			ui.write(e.EV_ABS, e.ABS_Y, y1)
+			ui.write(e.EV_ABS, e.ABS_PRESSURE, z)
 			if blat:
-				ui.write(e.EV_KEY, e.BTN_LEFT, 1)
+				ui.write(e.EV_KEY, e.BTN_TOUCH, 1)
 				blat = False
 			ui.syn()
 			writeRegister8(STMPE_FIFO_STA, 1) # Clear FIFO
 			writeRegister8(STMPE_FIFO_STA, 0)
 
-	ui.write(e.EV_KEY, e.BTN_LEFT, 0)
+	ui.write(e.EV_ABS, e.ABS_PRESSURE, 0)
+	ui.write(e.EV_KEY, e.BTN_TOUCH, 0)
 	ui.syn()
 
 	writeRegister8(STMPE_INT_STA, 0xFF) # Reset interrupts
