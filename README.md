@@ -8,7 +8,7 @@ tftcp handles the display (as PiTFT + fbcp did before). This is a compiled execu
 
 Install prerequisite software:
 ```
-sudo apt-get install python-pip python-smbus python-dev
+sudo apt-get install python-pip python-smbus python-spidev
 sudo pip install evdev
 ```
 
