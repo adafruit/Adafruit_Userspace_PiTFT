@@ -13,7 +13,7 @@ import os
 import time
 import RPi.GPIO as gpio
 import spidev
-from evdev import UInput, AbsInfo, ecodes as e
+from evdev import UInputError, UInput, AbsInfo, ecodes as e
 
 # UINPUT INIT --------------------------------------------------------------
 
@@ -25,7 +25,11 @@ events = {
    (e.ABS_X, AbsInfo(value=0, min=0, max=1023, fuzz=0, flat=0, resolution=0)),
    (e.ABS_Y, AbsInfo(value=0, min=0, max=1023, fuzz=0, flat=0, resolution=0))]
 }
-ui = UInput(events, name="touchmouse", bustype=e.BUS_USB)
+try:
+  ui = UInput(events, name="touchmouse", bustype=e.BUS_USB)
+except UInputError:
+  print("Couldn't create uinput - make sure you are running with sudo!")
+  exit(0)
 
 # GPIO INIT ----------------------------------------------------------------
 
@@ -92,7 +96,11 @@ if id != 0x811:
 	spi.mode = 0
 	id = readRegister16(0)
 
-print "ID: ", id
+print("Found Chip ID: 0x%x" % id)
+if id != 0x811:
+	print("Not a valid touch chip I know! Check your wiring")
+	exit
+print("Recognized touch chip. Let's go!")
 
 # Issue soft reset
 writeRegister8(STMPE_SYS_CTRL1, STMPE_SYS_CTRL1_RESET)
@@ -119,7 +127,7 @@ writeRegister8(STMPE_INT_STA, 0xFF) # reset all ints
 foo = [ 0,0,0,0 ]
 
 while True:
-	gpio.wait_for_edge(irqPin, gpio.FALLING)
+	gpio.wait_for_edge(irqPin, gpio.FALLING, timeout=10)
 
 	blat = True
 	while readRegister8(STMPE_TSC_CTRL) & 0x80:
@@ -135,7 +143,7 @@ while True:
 		x = ( foo[0]         << 4) | (foo[1] >> 4)
 		y = ((foo[1] & 0x0F) << 8) |  foo[2]
 		z =  foo[3]
-#		print x, y, z
+		print x, y, z
 
 		if z:
 			# Convert to screen space
