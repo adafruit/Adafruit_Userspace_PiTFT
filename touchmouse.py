@@ -93,7 +93,9 @@ STMPE_ADC_CTRL2_6_5MHZ   = 0x02
 STMPE_TSC_CTRL_EN        = 0x01
 STMPE_TSC_CTRL_XYZ       = 0x00
 STMPE_TSC_CFG_4SAMPLE    = 0x80
+STMPE_TSC_CFG_8SAMPLE    = 0xC0
 STMPE_TSC_CFG_DELAY_1MS  = 0x20
+STMPE_TSC_CFG_SETTLE_1MS = 0x03
 STMPE_TSC_CFG_SETTLE_5MS = 0x04
 STMPE_FIFO_STA_RESET     = 0x01
 STMPE_TSC_I_DRIVE_50MA   = 0x01
@@ -136,7 +138,7 @@ writeRegister8(STMPE_TSC_CTRL, STMPE_TSC_CTRL_XYZ | STMPE_TSC_CTRL_EN) # XYZ and
 #Serial.println(readRegister8(STMPE_TSC_CTRL), HEX)
 writeRegister8(STMPE_ADC_CTRL1, STMPE_ADC_CTRL1_10BIT | (0x6 << 4)) # 96 clocks per conversion
 writeRegister8(STMPE_ADC_CTRL2, STMPE_ADC_CTRL2_6_5MHZ)
-writeRegister8(STMPE_TSC_CFG, STMPE_TSC_CFG_4SAMPLE | STMPE_TSC_CFG_DELAY_1MS | STMPE_TSC_CFG_SETTLE_5MS)
+writeRegister8(STMPE_TSC_CFG, STMPE_TSC_CFG_8SAMPLE | STMPE_TSC_CFG_DELAY_1MS | STMPE_TSC_CFG_SETTLE_1MS)
 writeRegister8(STMPE_TSC_FRACTION_Z, 0x6)
 writeRegister8(STMPE_FIFO_TH, 1)
 writeRegister8(STMPE_FIFO_STA, STMPE_FIFO_STA_RESET)
@@ -160,7 +162,6 @@ while True:
 
 		# Allow conversion time before 1st reading,
 		# also prevents heavy CPU load; 40 fps is ample
-#		time.sleep(0.025)
 		time.sleep(1.0 / 30.0) # 30 FPS avoids glitches
 
 		for i in range(4):
