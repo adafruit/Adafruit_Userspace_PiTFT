@@ -22,7 +22,7 @@ parser = argparse.ArgumentParser(description='Touchmouse configurations')
 parser.add_argument('--chip', default="STMPE", help='select what chip to use - only STMPE supported at this time')
 parser.add_argument('-d', '--debug', action='store_true', help='print debug message')
 parser.add_argument('-r', '--rotation', default=90, type=int, help='Rotate the touchscreen 0/90/180 or 270 degrees')
-parser.add_argument('-c', '--calibration', default=[100, 100, 3800, 3800], nargs=4, type=int, help='Set the 4-part calibration')
+parser.add_argument('-c', '--calibration', default=[0, 0, 4095, 4095], nargs=4, type=int, help='Set the 4-part calibration')
 parser.add_argument('-o', '--outrange', default=[0, 0, 4095, 4095],  nargs=4, type=int, help='Set the 4-par output range')
 args = parser.parse_args()
 print(args)
@@ -175,11 +175,11 @@ while True:
 
 		if z:
 			# Convert to screen space
-			x1 = (y - args.calibration[CALIBRATION_MIN_Y]) * (EVENT_X_MAX+1) / (args.calibration[CALIBRATION_MAX_Y] - args.calibration[CALIBRATION_MIN_Y])
-			x1 = min(max(x1, 0), EVENT_X_MAX)
-
-			y1 = (args.calibration[CALIBRATION_MAX_X] - x) * (EVENT_Y_MAX+1) / (args.calibration[CALIBRATION_MAX_X] - args.calibration[CALIBRATION_MIN_X])
+			y1 = (y - args.calibration[CALIBRATION_MIN_Y]) * (EVENT_Y_MAX+1) / (args.calibration[CALIBRATION_MAX_Y] - args.calibration[CALIBRATION_MIN_Y])
 			y1 = min(max(y1, 0), EVENT_Y_MAX)
+
+			x1 = (x - args.calibration[CALIBRATION_MIN_X]) * (EVENT_X_MAX+1) / (args.calibration[CALIBRATION_MAX_X] - args.calibration[CALIBRATION_MIN_X])
+			x1 = min(max(x1, 0), EVENT_X_MAX)
 			
 			ui.write(e.EV_ABS, e.ABS_X, x1)
 			ui.write(e.EV_ABS, e.ABS_Y, y1)
