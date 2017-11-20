@@ -19,9 +19,9 @@ import argparse
 
 # DEFINE WHAT IS A VALID ROTATION
 def isValidRotation(r):
-    if int(r) not in [0, 90, 180, 270]:
-        raise argparse.ArgumentTypeError("%s is not one of [0, 90, 180, 270]" % r)
-    return int(r)
+	if int(r) not in [0, 90, 180, 270]:
+		raise argparse.ArgumentTypeError("%s is not one of [0, 90, 180, 270]" % r)
+	return int(r)
 
 # ARGUMENT PARSER ----------------------------------------------------------
 parser = argparse.ArgumentParser(description='Touchmouse configurations')
@@ -119,7 +119,7 @@ def readRegister8(addr):
 
 def readRegister16(addr):
 	return ((spi.xfer2([0x80 + addr, 0])[1] << 8) +
-	         spi.xfer2([0x81 + addr, 0])[1])
+			 spi.xfer2([0x81 + addr, 0])[1])
 
 id = readRegister16(0)
 if id != 0x811:
@@ -176,39 +176,34 @@ while True:
 		x = ( foo[0]         << 4) | (foo[1] >> 4)
 		y = ((foo[1] & 0x0F) << 8) |  foo[2]
 		z =  foo[3]
-		#Configure the rotation, if args.rotation is not in this set, it is assumed to be 0
-                if args.debug:
-                    print(x, y)
-                
-                x = float(x - args.calibration[CALIBRATION_MIN_X]) / (args.calibration[CALIBRATION_MAX_X] - args.calibration[CALIBRATION_MIN_X])
-                y = float(y - args.calibration[CALIBRATION_MIN_Y]) / (args.calibration[CALIBRATION_MAX_Y] - args.calibration[CALIBRATION_MIN_Y])
 
-		#if args.debug:
-                    #print("X:{:0.3f}, Y:{:0.3f}, Z:{:03d}".format(x, y, z))
+		#Configure the rotation, if args.rotation is not in this set, it is assumed to be 0
+		xFrac = float(x - args.calibration[CALIBRATION_MIN_X]) / (args.calibration[CALIBRATION_MAX_X] - args.calibration[CALIBRATION_MIN_X])
+		yFrac = float(y - args.calibration[CALIBRATION_MIN_Y]) / (args.calibration[CALIBRATION_MAX_Y] - args.calibration[CALIBRATION_MIN_Y])
 
 		if args.rotation == 90:
-			t = x
-			x = y
-			y = 1.0 - t
+			t = xFrac
+			xFrac = yFrac
+			yFrac = 1.0 - t
 		elif args.rotation == 180:
-			x = 1.0 - x
-			y = 1.0 - y
+			xFrac = 1.0 - xFrac
+			yFrac = 1.0 - yFrac
 		if args.rotation == 270:
-			t = x
-			x = 1.0 - y
-			y = t
+			t = xFrac
+			xFrac = 1.0 - yFrac
+			yFrac = t
+
+			if args.debug:
+				print("{:04d}({:01.3f}), {:04d}({:01.3f}), {:02d}".format(x, xFrac, y, yFrac, z))
 
 		if z:
 			# Convert to screen space
-			y1 = int(y * (EVENT_Y_MAX+1))
+			y1 = int(yFrac * (EVENT_Y_MAX+1))
 			y1 = min(max(y1, 0), EVENT_Y_MAX)
 
-			x1 = int(x * (EVENT_X_MAX+1))
+			x1 = int(xFrac * (EVENT_X_MAX+1))
 			x1 = min(max(x1, 0), EVENT_X_MAX)
 			
-                        #if args.debug:
-                                #print(x1, y1)
-
 			ui.write(e.EV_ABS, e.ABS_X, x1)
 			ui.write(e.EV_ABS, e.ABS_Y, y1)
 			ui.write(e.EV_ABS, e.ABS_PRESSURE, z)
