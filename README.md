@@ -2,7 +2,7 @@
 
 Raspberry Pi userspace handlers for PiTFT display and touch. These could be substituted for the current PiTFT device tree overlay and touchscreen driver (which is in the kernel and causes headaches whenver there's a new Raspbian kernel).
 
-This is currently UGLY and EXPERIMENTAL just to test the concept. Works ONLY on the 2.8 inch RESISTIVE PiTFT, and only in a SINGLE ORIENTATION.
+This is currently UGLY and EXPERIMENTAL just to test the concept. Works ONLY on the 2.8 inch RESISTIVE PiTFT.
 
 tftcp handles the display (as PiTFT + fbcp did before). This is a compiled executable and must be run as root. touchmouse.py handles the touchscreen (converting to mouse events), it's written in Python and also must be run as root. Be sure to ENABLE SPI via raspi-config. This WILL NOT WORK if PiTFT overlay is enabled!
 
