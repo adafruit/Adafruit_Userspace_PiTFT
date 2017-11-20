@@ -28,7 +28,7 @@ parser = argparse.ArgumentParser(description='Touchmouse configurations')
 parser.add_argument('--chip', default="STMPE", help='select what chip to use - only STMPE supported at this time')
 parser.add_argument('-d', '--debug', action='store_true', help='print debug message')
 parser.add_argument('-r', '--rotation', default=90, type=isValidRotation, help='Rotate the touchscreen 0/90/180 or 270 degrees')
-parser.add_argument('-c', '--calibration', default=[0, 0, 4095, 4095], nargs=4, type=int, help='Set the 4-part calibration')
+parser.add_argument('-c', '--calibration', default=[500, 300, 3600, 3800], nargs=4, type=int, help='Set the 4-part calibration')
 parser.add_argument('-o', '--outrange', default=[0, 0, 4095, 4095],  nargs=4, type=int, help='Set the 4-par output range')
 args = parser.parse_args()
 print(args)
@@ -176,31 +176,39 @@ while True:
 		x = ( foo[0]         << 4) | (foo[1] >> 4)
 		y = ((foo[1] & 0x0F) << 8) |  foo[2]
 		z =  foo[3]
-		if args.debug:
-			print(x, y, z)
-
-
 		#Configure the rotation, if args.rotation is not in this set, it is assumed to be 0
+                if args.debug:
+                    print(x, y)
+                
+                x = float(x - args.calibration[CALIBRATION_MIN_X]) / (args.calibration[CALIBRATION_MAX_X] - args.calibration[CALIBRATION_MIN_X])
+                y = float(y - args.calibration[CALIBRATION_MIN_Y]) / (args.calibration[CALIBRATION_MAX_Y] - args.calibration[CALIBRATION_MIN_Y])
+
+		#if args.debug:
+                    #print("X:{:0.3f}, Y:{:0.3f}, Z:{:03d}".format(x, y, z))
+
 		if args.rotation == 90:
 			t = x
 			x = y
-			y = args.calibration[CALIBRATION_MAX_Y]-t
+			y = 1.0 - t
 		elif args.rotation == 180:
-			x = args.calibration[CALIBRATION_MAX_X]-x
-			y = args.calibration[CALIBRATION_MAX_Y]-y
+			x = 1.0 - x
+			y = 1.0 - y
 		if args.rotation == 270:
 			t = x
-			x = args.calibration[CALIBRATION_MAX_X]-y
+			x = 1.0 - y
 			y = t
 
 		if z:
 			# Convert to screen space
-			y1 = (y - args.calibration[CALIBRATION_MIN_Y]) * (EVENT_Y_MAX+1) / (args.calibration[CALIBRATION_MAX_Y] - args.calibration[CALIBRATION_MIN_Y])
+			y1 = int(y * (EVENT_Y_MAX+1))
 			y1 = min(max(y1, 0), EVENT_Y_MAX)
 
-			x1 = (x - args.calibration[CALIBRATION_MIN_X]) * (EVENT_X_MAX+1) / (args.calibration[CALIBRATION_MAX_X] - args.calibration[CALIBRATION_MIN_X])
+			x1 = int(x * (EVENT_X_MAX+1))
 			x1 = min(max(x1, 0), EVENT_X_MAX)
 			
+                        #if args.debug:
+                                #print(x1, y1)
+
 			ui.write(e.EV_ABS, e.ABS_X, x1)
 			ui.write(e.EV_ABS, e.ABS_Y, y1)
 			ui.write(e.EV_ABS, e.ABS_PRESSURE, z)
