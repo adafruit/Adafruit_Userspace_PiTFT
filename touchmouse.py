@@ -17,12 +17,18 @@ from evdev import UInputError, UInput, AbsInfo, ecodes as e
 import argparse
 
 
+# DEFINE WHAT IS A VALID ROTATION
+def isValidRotation(r):
+	if int(r) not in [0, 90, 180, 270]:
+		raise argparse.ArgumentTypeError("%s is not one of [0, 90, 180, 270]" % r)
+	return int(r)
+
 # ARGUMENT PARSER ----------------------------------------------------------
 parser = argparse.ArgumentParser(description='Touchmouse configurations')
 parser.add_argument('--chip', default="STMPE", help='select what chip to use - only STMPE supported at this time')
 parser.add_argument('-d', '--debug', action='store_true', help='print debug message')
-parser.add_argument('-r', '--rotation', default=90, type=int, help='Rotate the touchscreen 0/90/180 or 270 degrees')
-parser.add_argument('-c', '--calibration', default=[0, 0, 4095, 4095], nargs=4, type=int, help='Set the 4-part calibration')
+parser.add_argument('-r', '--rotation', default=90, type=isValidRotation, help='Rotate the touchscreen 0/90/180 or 270 degrees')
+parser.add_argument('-c', '--calibration', default=[500, 300, 3600, 3800], nargs=4, type=int, help='Set the 4-part calibration')
 parser.add_argument('-o', '--outrange', default=[0, 0, 4095, 4095],  nargs=4, type=int, help='Set the 4-par output range')
 args = parser.parse_args()
 print(args)
@@ -113,7 +119,7 @@ def readRegister8(addr):
 
 def readRegister16(addr):
 	return ((spi.xfer2([0x80 + addr, 0])[1] << 8) +
-	         spi.xfer2([0x81 + addr, 0])[1])
+			 spi.xfer2([0x81 + addr, 0])[1])
 
 id = readRegister16(0)
 if id != 0x811:
@@ -170,15 +176,32 @@ while True:
 		x = ( foo[0]         << 4) | (foo[1] >> 4)
 		y = ((foo[1] & 0x0F) << 8) |  foo[2]
 		z =  foo[3]
-		if args.debug:
-			print(x, y, z)
+
+		#Configure the rotation, if args.rotation is not in this set, it is assumed to be 0
+		xFrac = float(x - args.calibration[CALIBRATION_MIN_X]) / (args.calibration[CALIBRATION_MAX_X] - args.calibration[CALIBRATION_MIN_X])
+		yFrac = float(y - args.calibration[CALIBRATION_MIN_Y]) / (args.calibration[CALIBRATION_MAX_Y] - args.calibration[CALIBRATION_MIN_Y])
+
+		if args.rotation == 90:
+			t = xFrac
+			xFrac = yFrac
+			yFrac = 1.0 - t
+		elif args.rotation == 180:
+			xFrac = 1.0 - xFrac
+			yFrac = 1.0 - yFrac
+		if args.rotation == 270:
+			t = xFrac
+			xFrac = 1.0 - yFrac
+			yFrac = t
+
+			if args.debug:
+				print("{:04d}({:01.3f}), {:04d}({:01.3f}), {:02d}".format(x, xFrac, y, yFrac, z))
 
 		if z:
 			# Convert to screen space
-			y1 = (y - args.calibration[CALIBRATION_MIN_Y]) * (EVENT_Y_MAX+1) / (args.calibration[CALIBRATION_MAX_Y] - args.calibration[CALIBRATION_MIN_Y])
+			y1 = int(yFrac * (EVENT_Y_MAX+1))
 			y1 = min(max(y1, 0), EVENT_Y_MAX)
 
-			x1 = (x - args.calibration[CALIBRATION_MIN_X]) * (EVENT_X_MAX+1) / (args.calibration[CALIBRATION_MAX_X] - args.calibration[CALIBRATION_MIN_X])
+			x1 = int(xFrac * (EVENT_X_MAX+1))
 			x1 = min(max(x1, 0), EVENT_X_MAX)
 			
 			ui.write(e.EV_ABS, e.ABS_X, x1)
