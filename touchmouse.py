@@ -17,11 +17,17 @@ from evdev import UInputError, UInput, AbsInfo, ecodes as e
 import argparse
 
 
+# DEFINE WHAT IS A VALID ROTATION
+def isValidRotation(r):
+    if int(r) not in [0, 90, 180, 270]:
+        raise argparse.ArgumentTypeError("%s is not one of [0, 90, 180, 270]" % r)
+    return int(r)
+
 # ARGUMENT PARSER ----------------------------------------------------------
 parser = argparse.ArgumentParser(description='Touchmouse configurations')
 parser.add_argument('--chip', default="STMPE", help='select what chip to use - only STMPE supported at this time')
 parser.add_argument('-d', '--debug', action='store_true', help='print debug message')
-parser.add_argument('-r', '--rotation', default=90, type=int, help='Rotate the touchscreen 0/90/180 or 270 degrees')
+parser.add_argument('-r', '--rotation', default=90, type=isValidRotation, help='Rotate the touchscreen 0/90/180 or 270 degrees')
 parser.add_argument('-c', '--calibration', default=[0, 0, 4095, 4095], nargs=4, type=int, help='Set the 4-part calibration')
 parser.add_argument('-o', '--outrange', default=[0, 0, 4095, 4095],  nargs=4, type=int, help='Set the 4-par output range')
 args = parser.parse_args()
@@ -172,6 +178,20 @@ while True:
 		z =  foo[3]
 		if args.debug:
 			print(x, y, z)
+
+
+		#Configure the rotation, if args.rotation is not in this set, it is assumed to be 0
+		if args.rotation == 90:
+			t = x
+			x = y
+			y = args.calibration[CALIBRATION_MAX_Y]-t
+		elif args.rotation == 180:
+			x = args.calibration[CALIBRATION_MAX_X]-x
+			y = args.calibration[CALIBRATION_MAX_Y]-y
+		if args.rotation == 270:
+			t = x
+			x = args.calibration[CALIBRATION_MAX_X]-y
+			y = t
 
 		if z:
 			# Convert to screen space
